@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>DSC Tape</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Anton&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#000;--fg:#f2efe6;--red:#e1202c;--blue:#1f3fd1;--osd:#e9f5ff;--dim:#8d8a84}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.osd{font-family:VT323,monospace;letter-spacing:.04em}
+/* CRT layers */
+.crt:after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+ background:repeating-linear-gradient(to bottom,rgba(0,0,0,0) 0 2px,rgba(0,0,0,.22) 2px 3px)}
+#noise{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:49;opacity:.07;mix-blend-mode:screen}
+.track{position:fixed;left:0;right:0;height:14px;z-index:48;pointer-events:none;background:linear-gradient(to bottom,transparent,rgba(255,255,255,.08),transparent);animation:track 6s linear infinite}
+@keyframes track{0%{top:-20px}100%{top:110%}}
+/* top OSD bar */
+.bar{position:fixed;top:0;left:0;right:0;z-index:40;display:flex;justify-content:space-between;align-items:center;
+ padding:calc(env(safe-area-inset-top) + 8px) 14px 6px;font-size:24px;color:var(--osd);text-shadow:1px 0 var(--red),-1px 0 #2a6bff;pointer-events:none}
+.bar .tag{font-size:16px;background:#ffd400;color:#000;text-shadow:none;padding:0 6px;margin-left:8px}
+.bar .r{display:flex;align-items:center;gap:10px}
+.cartbtn{pointer-events:auto;font-size:22px;border:1px solid rgba(233,245,255,.6);padding:0 8px}
+/* screens */
+.screen{position:fixed;inset:0;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen.on{display:block}
+.pad{padding:calc(env(safe-area-inset-top) + 58px) 18px calc(env(safe-area-inset-bottom) + 40px)}
+.flash{animation:flash .45s steps(3)}
+@keyframes flash{0%{filter:brightness(2.4) contrast(1.6);transform:translateX(-6px) skewX(4deg)}50%{transform:translateX(5px)}100%{filter:none;transform:none}}
+/* BOOT */
+#boot{background:var(--blue);display:none;align-items:center;justify-content:center}
+#boot.on{display:flex}
+#boot .tl{position:absolute;top:calc(env(safe-area-inset-top) + 18px);left:20px;font-size:40px;color:#fff}
+#boot .bl{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 22px);left:20px;font-size:30px;color:#fff;line-height:1}
+#boot .center{text-align:center;color:#fff}
+#boot .center .eject{font-size:22px;opacity:.85;margin-bottom:14px}
+#boot .pp{font-size:56px;border:3px solid #fff;padding:6px 26px;animation:blink 1.1s steps(2) infinite}
+@keyframes blink{50%{opacity:.25}}
+#boot .hint{font-size:20px;margin-top:16px;opacity:.8}
+/* MENU */
+#menu video{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(.75) contrast(1.1) brightness(.62)}
+#menu .shade{position:fixed;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,rgba(0,0,0,.05) 35%,rgba(0,0,0,.85) 72%,#000 100%)}
+#menu .content{position:relative;min-height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:calc(env(safe-area-inset-top) + 60px) 22px calc(env(safe-area-inset-bottom) + 34px)}
+.wm{font-family:Anton,Impact,"Arial Narrow",sans-serif;font-weight:400;line-height:.86;text-transform:uppercase;letter-spacing:.01em}
+.wm span{display:block;font-size:clamp(64px,19vw,150px)}
+.wm .c{color:var(--red);font-size:clamp(46px,13.6vw,108px);letter-spacing:.2em;margin-top:4px}
+.title .ed{font-family:VT323,monospace;font-size:22px;color:var(--osd);margin-top:10px;letter-spacing:.12em}
+.menu-list{list-style:none;margin-top:22px}
+.menu-list li button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-family:VT323,monospace;font-size:36px;letter-spacing:.06em;padding:3px 0;color:#cfcac0}
+.menu-list li button .sk{width:26px;height:26px;opacity:0}
+.menu-list li.sel button{color:#fff}
+.menu-list li.sel button .sk{opacity:1}
+.menu-list li.sel button span.t{background:var(--red);padding:0 8px;color:#fff}
+.menu-foot{margin-top:16px;font-family:VT323,monospace;font-size:19px;color:var(--dim)}
+/* screensaver */
+#saver{position:fixed;inset:0;z-index:45;display:none;background:#000}
+#saver.on{display:block}
+#saver img{position:absolute;width:150px;height:auto}
+/* PLAY */
+#play{background:#000}
+#play video{position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000}
+#play .ctr{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 24px);left:20px;font-size:30px;color:var(--osd);z-index:41}
+/* generic headings */
+.h-ch{font-family:VT323,monospace;color:var(--red);font-size:22px;letter-spacing:.12em}
+.h-big{font-family:Anton,Impact,sans-serif;text-transform:uppercase;font-size:clamp(42px,12vw,88px);line-height:.92;margin-top:2px}
+.back{font-family:VT323,monospace;font-size:26px;color:var(--osd);margin-bottom:14px;display:inline-block}
+/* SCENES */
+.scenes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:20px}
+.scene{position:relative;text-align:left}
+.scene .th{aspect-ratio:3/4;overflow:hidden;border:2px solid #222;background:#111}
+.scene .th img{width:100%;height:100%;object-fit:cover;display:block;filter:contrast(1.05)}
+.scene .no{position:absolute;top:6px;left:6px;font-family:VT323,monospace;font-size:20px;background:#000;color:var(--osd);padding:0 6px}
+.scene .nm{font-family:VT323,monospace;font-size:24px;margin-top:6px;line-height:1}
+.scene .ct{font-size:12px;color:var(--dim)}
+.scene:active .th,.scene:hover .th{border-color:var(--red)}
+/* viewer */
+#viewer{background:#000}
+.strip{position:fixed;inset:0;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.strip figure{flex:none;width:100%;height:100%;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:70px 0 90px}
+.strip img{max-width:100%;max-height:100%;object-fit:contain}
+.vctl{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 16px);z-index:41;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-family:VT323,monospace;font-size:28px;color:var(--osd)}
+.vctl button{border:1px solid rgba(233,245,255,.5);padding:2px 14px}
+/* SHOP */
+.chips{display:flex;gap:8px;overflow-x:auto;margin:16px -18px 18px;padding:0 18px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;font-family:VT323,monospace;font-size:22px;border:1px solid #555;padding:2px 12px;color:#cfcac0}
+.chip.on{background:var(--fg);color:#000;border-color:var(--fg)}
+.tapes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.tape{text-align:left}
+.tape .sleeve{position:relative;aspect-ratio:3/4.2;background:#151515;border:2px solid #232323;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tape .sleeve img{width:88%;height:78%;object-fit:contain}
+.tape .lbl{position:absolute;left:8px;right:8px;bottom:8px;background:#f4f1e8;color:#111;font-family:Inter,sans-serif;font-weight:800;text-transform:uppercase;font-size:11px;letter-spacing:.04em;line-height:1.15;padding:6px 7px;border-left:6px solid var(--red)}
+.tape .side{position:absolute;top:8px;left:8px;font-family:VT323,monospace;font-size:16px;background:var(--red);color:#fff;padding:0 5px}
+.tape .pr{display:flex;justify-content:space-between;margin-top:7px;font-family:VT323,monospace;font-size:22px}
+.tape .pr span:last-child{color:var(--dim)}
+/* product */
+.pimg{background:#151515;border:2px solid #232323;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;margin-top:8px}
+.pimg img{width:86%;height:86%;object-fit:contain}
+.ptitle{font-family:Anton,Impact,sans-serif;text-transform:uppercase;font-size:38px;line-height:.95;margin-top:16px}
+.pprice{font-family:VT323,monospace;font-size:30px;color:var(--osd)}
+.sizes{display:flex;gap:8px;margin:14px 0}
+.size{font-family:VT323,monospace;font-size:24px;border:1px solid #555;width:52px;padding:4px 0;text-align:center}
+.size.on{background:var(--fg);color:#000}
+.cta{display:block;width:100%;background:var(--red);color:#fff;font-family:VT323,monospace;font-size:30px;letter-spacing:.08em;padding:10px;margin-top:8px}
+.cta.ghost{background:transparent;border:2px solid var(--fg);color:var(--fg)}
+.pnote{color:#bdb8ae;font-size:14px;line-height:1.5;margin-top:16px}
+.ph{display:inline-block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;border:1px dashed #666;color:#999;padding:2px 6px;margin-top:10px}
+/* cart drawer */
+#cart{position:fixed;inset:0;z-index:60;display:none;background:rgba(0,0,0,.7)}
+#cart.on{display:block}
+#cart .panel{position:absolute;right:0;top:0;bottom:0;width:min(420px,92vw);background:#0b0b0b;border-left:2px solid #222;padding:calc(env(safe-area-inset-top) + 20px) 18px 24px;overflow-y:auto}
+.citem{display:grid;grid-template-columns:64px 1fr auto;gap:10px;align-items:center;border-bottom:1px solid #222;padding:10px 0}
+.citem img{width:64px;height:64px;object-fit:contain;background:#151515}
+.citem .n{font-size:14px;font-weight:600}.citem .s{font-family:VT323,monospace;font-size:18px;color:var(--dim)}
+.citem button{font-family:VT323,monospace;font-size:20px;color:var(--red)}
+.ctotal{display:flex;justify-content:space-between;font-family:VT323,monospace;font-size:28px;margin:16px 0}
+/* features */
+.feat{display:grid;gap:12px;margin-top:20px}
+.fbtn{display:flex;justify-content:space-between;align-items:center;border:2px solid #2a2a2a;padding:16px;text-align:left}
+.fbtn b{font-family:VT323,monospace;font-size:30px;font-weight:400;letter-spacing:.04em}
+.fbtn span{display:block;color:var(--dim);font-size:13px;margin-top:2px}
+.fbtn i{font-style:normal;font-family:VT323,monospace;font-size:28px;color:var(--red)}
+.fbtn:active,.fbtn:hover{border-color:var(--red)}
+.flyer{width:100%;display:block;margin-top:14px;border:2px solid #222}
+.steps{counter-reset:s;list-style:none;margin:18px 0}
+.steps li{counter-increment:s;display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #222;font-size:15px}
+.steps li:before{content:"0" counter(s);font-family:VT323,monospace;font-size:28px;color:var(--red);line-height:1}
+.field{display:block;width:100%;background:#111;border:1px solid #333;color:var(--fg);font:inherit;padding:12px;margin-top:10px}
+/* setup */
+.rows{margin-top:18px;border-top:1px solid #222}
+.row{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #222}
+.row .k{font-family:VT323,monospace;font-size:24px;color:var(--dim)}
+.row .v{text-align:right;font-size:15px}
+.toggle{font-family:VT323,monospace;font-size:24px;border:1px solid #555;padding:0 10px}
+.toggle.on{background:var(--fg);color:#000}
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 26px);transform:translateX(-50%);z-index:70;background:#ffd400;color:#000;font-family:VT323,monospace;font-size:22px;padding:6px 14px;display:none;max-width:90vw;text-align:center}
+#toast.on{display:block}
+
+/* flyer preview intro */
+#intro{position:fixed;inset:0;z-index:47;display:none;background:#000;align-items:center;justify-content:center}
+#intro.on{display:flex}
+#intro.cut{background:transparent;transition:background .1s}
+#intro .lab{position:absolute;top:calc(env(safe-area-inset-top) + 14px);left:16px;right:16px;display:flex;justify-content:space-between;font-family:VT323,monospace;font-size:24px;color:var(--osd)}
+#intro .lab b{font-weight:400;background:var(--red);color:#fff;padding:0 6px}
+#intro .fw{position:relative;width:min(84vw,calc(78vh * .75));aspect-ratio:3/4}
+#intro .half{position:absolute;inset:0;background:url(img/flyer.jpg) center/cover no-repeat;transition:transform .75s cubic-bezier(.7,0,.2,1),opacity .75s}
+#intro .h1{clip-path:polygon(0 0,100% 0,100% 46%,0 54%)}
+#intro .h2{clip-path:polygon(0 54%,100% 46%,100% 100%,0 100%)}
+#intro .fw{animation:pop .5s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes pop{0%{transform:scale(.6);opacity:0;filter:brightness(3)}60%{opacity:1}100%{transform:none;filter:none}}
+#intro .slash{position:absolute;left:-6%;right:-6%;top:50%;height:3px;background:#fff;transform:rotate(-4.6deg) scaleX(0);transform-origin:left;transition:transform .18s ease-out}
+#intro.slashing .slash{transform:rotate(-4.6deg) scaleX(1)}
+#intro.cut .slash{opacity:0;transition:opacity .2s}
+#intro.cut .h1{transform:translate(-8%,-120%) rotate(-6deg)}
+#intro.cut .h2{transform:translate(8%,120%) rotate(5deg)}
+#intro.cut .lab,#intro.cut .skip{opacity:0;transition:opacity .15s}
+#intro .skip{position:absolute;bottom:calc(env(safe-area-inset-bottom) + 20px);right:16px;font-family:VT323,monospace;font-size:22px;color:var(--osd);border:1px solid rgba(233,245,255,.5);padding:0 10px}
+@media (min-width:900px){
+ .scenes{grid-template-columns:repeat(4,1fr)}.tapes{grid-template-columns:repeat(4,1fr)}
+ .pad{max-width:1100px;margin:0 auto}
+ #menu .content{max-width:1100px;margin:0 auto}
+ .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+}
+@media (prefers-reduced-motion:reduce){.track,#boot .pp{animation:none}.flash{animation:none}}
+</style>
+</head>
+<body class="crt">
+<canvas id="noise"></canvas><div class="track"></div>
+
+<div class="bar osd" id="bar" hidden><span id="osdL">▶ PLAY</span><span class="r"><span id="osdR">CH 00</span><button class="cartbtn osd" id="cartBtn" aria-label="Cart">BAG <span id="cc">0</span></button><span class="tag">MOCKUP</span></span></div>
+
+<!-- BOOT -->
+<section id="boot" class="screen osd" aria-label="Start">
+  <div class="tl">▶ PLAY</div>
+  <div class="center">
+    <div class="eject">TAPE INSERTED · DSC-001</div>
+    <button class="pp" id="pressPlay">PRESS PLAY</button>
+    <div class="hint">tap to start · sound on</div>
+  </div>
+  <div class="bl">NOV.06 2026<br>PM 5:00</div>
+</section>
+
+<!-- MENU -->
+<section id="menu" class="screen" aria-label="Main menu">
+  <video id="bgv" src="media/skate.mp4" muted loop playsinline autoplay preload="auto"></video>
+  <div class="shade"></div>
+  <div class="content">
+    <div class="title">
+      <h1 class="wm"><span>DEAD STOCK</span><span class="c">CINCY</span></h1>
+      <div class="ed">THE GRAND OPENING EDITION · 4187 HAMILTON AVE</div>
+    </div>
+    <ul class="menu-list" id="menuList">
+      <li><button data-go="play"><svg class="sk" viewBox="0 0 24 24"><use href="#skull"/></svg><span class="t">PLAY MOVIE</span></button></li>
+      <li><button data-go="scenes"><svg class="sk" viewBox="0 0 24 24"><use href="#skull"/></svg><span class="t">SCENE SELECTION</span></button></li>
+      <li><button data-go="shop"><svg class="sk" viewBox="0 0 24 24"><use href="#skull"/></svg><span class="t">SHOP THE TAPE</span></button></li>
+      <li><button data-go="extras"><svg class="sk" viewBox="0 0 24 24"><use href="#skull"/></svg><span class="t">SPECIAL FEATURES</span></button></li>
+      <li><button data-go="setup"><svg class="sk" viewBox="0 0 24 24"><use href="#skull"/></svg><span class="t">SET UP · VISIT</span></button></li>
+    </ul>
+    <div class="menu-foot">GRAND OPENING FRI NOV 6 · 5 PM · NORTHSIDE</div>
+  </div>
+</section>
+
+<div id="intro" aria-label="Grand opening preview"><div class="lab"><span><b>PREVIEW</b> COMING ATTRACTION</span><span>NOV 06</span></div><div class="fw"><div class="half h1"></div><div class="half h2"></div><div class="slash"></div></div><button class="skip" id="skipIntro">SKIP ▶▶</button></div>
+<div id="saver"><img id="saverImg" src="img/dsc-logo-round.png" alt=""></div>
+
+<!-- PLAY -->
+<section id="play" class="screen" aria-label="Play movie">
+  <video id="movie" src="media/skate.mp4" playsinline preload="auto"></video>
+  <div class="ctr osd" id="ctr">00:00:00</div>
+</section>
+
+<!-- SCENES -->
+<section id="scenes" class="screen"><div class="pad">
+  <button class="back" data-go="menu">◀ MAIN MENU</button>
+  <div class="h-ch">SCENE SELECTION</div><div class="h-big">The Archive</div>
+  <div class="scenes" id="sceneGrid"></div>
+</div></section>
+
+<!-- VIEWER -->
+<section id="viewer" class="screen">
+  <div class="strip" id="strip"></div>
+  <div class="vctl"><button id="vPrev">◀</button><span id="vCount">01 / 10</span><button id="vNext">▶</button></div>
+</section>
+
+<!-- SHOP -->
+<section id="shop" class="screen"><div class="pad">
+  <button class="back" data-go="menu">◀ MAIN MENU</button>
+  <div class="h-ch">SHOP THE TAPE</div><div class="h-big">On the Rack</div>
+  <div class="chips" id="chips"></div>
+  <div class="tapes" id="tapes"></div>
+</div></section>
+
+<!-- PRODUCT -->
+<section id="product" class="screen"><div class="pad" id="pBody"></div></section>
+
+<!-- EXTRAS -->
+<section id="extras" class="screen"><div class="pad">
+  <button class="back" data-go="menu">◀ MAIN MENU</button>
+  <div class="h-ch">SPECIAL FEATURES</div><div class="h-big">Bonus Tape</div>
+  <div class="feat">
+    <button class="fbtn" data-go="opening"><div><b>GRAND OPENING</b><span>Fri Nov 6 · 5 PM · free custom tote for the first 20</span></div><i>▶</i></button>
+    <button class="fbtn" data-go="customs"><div><b>CUSTOM PRINTS</b><span>Bring a piece, leave with a custom</span></div><i>▶</i></button>
+    <button class="fbtn" data-go="bts"><div><b>BEHIND THE SCENES</b><span>The garage shoot</span></div><i>▶</i></button>
+    <button class="fbtn" data-go="sell"><div><b>SELL AT DSC</b><span>Cincinnati brand? Apply for the wall</span></div><i>▶</i></button>
+  </div>
+</div></section>
+
+<section id="opening" class="screen"><div class="pad">
+  <button class="back" data-go="extras">◀ SPECIAL FEATURES</button>
+  <div class="h-ch">FEATURE 01</div><div class="h-big">Grand Opening</div>
+  <img class="flyer" src="img/flyer.jpg" alt="Grand opening flyer: Fri Nov 6, 5 PM, 4187 Hamilton Ave, Northside">
+  <button class="cta" data-go="setup" style="margin-top:16px">GET DIRECTIONS</button>
+</div></section>
+
+<section id="customs" class="screen"><div class="pad">
+  <button class="back" data-go="extras">◀ SPECIAL FEATURES</button>
+  <div class="h-ch">FEATURE 02</div><div class="h-big">Custom Prints</div>
+  <ol class="steps"><li>Pick a blank, or bring your own piece.</li><li>Choose a graphic from the wall, or bring your own art.</li><li>We print it in the shop on the DTG.</li></ol>
+  <button class="cta" data-toast="Mockup: this opens the custom prints builder">START A CUSTOM</button>
+</div></section>
+
+<section id="sell" class="screen"><div class="pad">
+  <button class="back" data-go="extras">◀ SPECIAL FEATURES</button>
+  <div class="h-ch">FEATURE 04</div><div class="h-big">Sell at DSC</div>
+  <p class="pnote">Cincinnati brand? Apply to get on the wall. Every application gets reviewed by the crew.</p>
+  <input class="field" placeholder="Brand name"><input class="field" placeholder="Instagram"><input class="field" placeholder="Email">
+  <button class="cta" data-toast="Mockup: this submits to the brand application">APPLY</button>
+</div></section>
+
+<!-- SETUP -->
+<section id="setup" class="screen"><div class="pad">
+  <button class="back" data-go="menu">◀ MAIN MENU</button>
+  <div class="h-ch">SET UP</div><div class="h-big">Visit the Store</div>
+  <div class="rows">
+    <div class="row"><span class="k">ADDRESS</span><span class="v">4187 Hamilton Ave<br>Northside, Cincinnati, OH</span></div>
+    <div class="row"><span class="k">OPENING</span><span class="v">Fri Nov 6 · 5 PM</span></div>
+    <div class="row"><span class="k">HOURS</span><span class="v">Coming soon</span></div>
+    <div class="row"><span class="k">SOUND</span><span class="v"><button class="toggle on" id="sndBtn">ON</button></span></div>
+  </div>
+  <a class="cta" style="text-align:center;text-decoration:none" href="https://www.google.com/maps/search/?api=1&query=4187+Hamilton+Ave+Cincinnati+OH" target="_blank" rel="noopener">OPEN IN MAPS</a>
+  <button class="cta ghost" data-go="boot">REWIND TAPE</button>
+</div></section>
+
+<div id="cart"><div class="panel">
+  <button class="back" id="cartClose">◀ CLOSE</button>
+  <div class="h-ch">YOUR BAG</div>
+  <div id="cItems"></div>
+  <div class="ctotal"><span>TOTAL</span><span id="cTotal">$0</span></div>
+  <button class="cta" data-toast="Mockup: this goes to Shopify checkout">CHECKOUT</button>
+</div></div>
+
+<div id="toast"></div>
+
+<svg width="0" height="0" style="position:absolute"><symbol id="skull" viewBox="0 0 24 24"><path fill="#e1202c" d="M12 2C6.9 2 3 5.6 3 10.3c0 2.8 1.4 4.9 3.2 6.1V20a1 1 0 0 0 1 1h1.6v-2h1.6v2h3.2v-2h1.6v2h1.6a1 1 0 0 0 1-1v-3.6c1.8-1.2 3.2-3.3 3.2-6.1C21 5.6 17.1 2 12 2z"/><path stroke="#000" stroke-width="1.6" stroke-linecap="round" d="M7.4 9.2l2.6 2.6M10 9.2l-2.6 2.6M14 9.2l2.6 2.6M16.6 9.2L14 11.8"/><path fill="#000" d="M11.2 13.6h1.6l-.8 1.6z"/></symbol></svg>
+
+<script>
+const CDN='img/products/';
+const P=[
+ {h:'oversized-war-hoodie',t:'Oversized War Hoodie',c:'Hoodies',p:110,one:true,i:'oversized_fuck_war_hoodie_xl_back_transparent.png?v=1779296032'},
+ {h:'cut-here-flannel',t:'Cut Here Flannel',c:'Outerwear',p:95,one:true,i:'cut_here_flannel_medium_front_transparent.png?v=1779296008'},
+ {h:'studded-sweatshorts',t:'Studded Sweatshorts',c:'Pants',p:80,one:true,i:'up_cycled_double_wasted_studded_sweatshorts_large_front_transparent.png?v=1779296054'},
+ {h:'three-panel-mankind-tee',t:'Three Panel Mankind Tee',c:'Tees',p:60,one:true,i:'three_panel_mankind_tee_large_front_trasnsparent.png?v=1779296048'},
+ {h:'good-day-biker-tee',t:'Good Day Biker Tee',c:'Tees',p:60,one:true,i:'THREE_PANEL_GOOD_DAY_BIKER_T_LARGE_FRONT_TRANSPARENT.png?v=1779296041'},
+ {h:'oversized-513-tee',t:'Oversized 513 Tee',c:'Tees',p:50,i:'oversized_513_tee_medium_front_tranpsarent.png?v=1779296027'},
+ {h:'faded-camo',t:'Faded Camo',c:'Pants',p:75,i:'faded_camo_mens_large_front.png?v=1779296018'},
+ {h:'faded-real-tree-camo',t:'Faded Real Tree Camo',c:'Pants',p:75,i:'Faded_real_tree_camo_medium_front_transparent.png?v=1779296024'},
+ {h:'double-wasted-sweatpants',t:'Double Wasted Sweatpants',c:'Pants',p:85,i:'double_wasted_baggy_sweatpants_womens_large_front.png?v=1779296013'},
+ {h:'cropped-spray-tee',t:'Cropped Spray Tee',c:'Tees',p:55,i:'cropped_spray_tee_medium_front_transparent.png?v=1779296003'},
+ {h:'cropped-pearl-tee',t:'Cropped Pearl Tee',c:'Tees',p:55,i:'CROPPED_PEARL_TEA_SIZE_WOMENS_MEDIUM_TRANSPARENT.png?v=1779295997'}
+];
+const img=p=>CDN+p.i.split('?')[0];
+const SC=[
+ {k:'color',n:'COLOR WALLS',c:10},{k:'night',n:'NEON NIGHT',c:12},{k:'black',n:'BLACK ROOM',c:10},
+ {k:'garage',n:'THE GARAGE',c:6},{k:'psych',n:'SWEET DREAMS',c:8},{k:'upcycle',n:'1 OF 1s',c:7},{k:'orange',n:'FIRST TAPE',c:4}];
+const FILES={color:[249,268,277,294,305,309,325,337,372,301],night:[720,724,733,737,741,746,750,755,758,761,766,771],black:[811,816,818,825,836,844,851,853,860,863],garage:[1156,1158,1159,1160,1161,1164],psych:[19,20,27,28,29,30,32,34],upcycle:[1191,1192,1199,1201,1204,1206,1211],orange:[11,13,14,16]};
+const f4=n=>String(n).padStart(4,'0');
+const $=s=>document.querySelector(s);
+let sound=true, cart=[], cur='boot';
+try{cart=JSON.parse(localStorage.getItem('dscbag')||'[]')}catch(e){}
+function saveCart(){try{localStorage.setItem('dscbag',JSON.stringify(cart))}catch(e){} $('#cc').textContent=cart.length}
+
+/* audio blip */
+let AC;function blip(f=660,d=.05){if(!sound)return;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f;g.gain.value=.04;o.connect(g);g.connect(AC.destination);o.start();o.stop(AC.currentTime+d)}catch(e){}}
+
+/* noise */
+const cv=$('#noise'),cx=cv.getContext('2d');function sizeN(){cv.width=innerWidth/3;cv.height=innerHeight/3}sizeN();addEventListener('resize',sizeN);
+(function nz(){const w=cv.width,h=cv.height,d=cx.createImageData(w,h);for(let i=0;i<d.data.length;i+=4){const v=Math.random()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}cx.putImageData(d,0,0);setTimeout(()=>requestAnimationFrame(nz),70)})();
+
+/* router */
+const CH={menu:'CH 00',play:'CH 01',scenes:'CH 02',viewer:'CH 02',shop:'CH 03',product:'CH 03',extras:'CH 04',opening:'CH 04',customs:'CH 04',sell:'CH 04',setup:'CH 05'};
+function go(id,arg,push=true){
+ if(id==='bts'){id='viewer';arg='garage'}
+ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+ const el=$('#'+id); if(!el)return; el.classList.add('on'); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+ el.scrollTop=0; cur=id; $('#bar').hidden=(id==='boot');
+ $('#osdR').textContent=CH[id]||''; $('#osdL').textContent=id==='play'?'▶ PLAY':'▶ PLAY';
+ if(id==='menu'){$('#bgv').play().catch(()=>{});armSaver()} else {disarmSaver()}
+ if(id!=='play'){const m=$('#movie');m.pause()}
+ if(id==='play')startMovie();
+ if(id==='viewer')openViewer(arg);
+ if(id==='product')openProduct(arg);
+ if(push){try{history.pushState({id,arg},'','#'+id+(arg?'/'+arg:''))}catch(e){}}
+ blip(520,.04);
+}
+addEventListener('popstate',e=>{const s=e.state||{id:'menu'};go(s.id,s.arg,false)});
+document.addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b){e.preventDefault();go(b.dataset.go,b.dataset.arg)}const t=e.target.closest('[data-toast]');if(t)toast(t.dataset.toast)});
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('on'),2600);blip(880,.06)}
+
+/* boot */
+$('#pressPlay').addEventListener('click',()=>{blip(440,.12);try{sessionStorage.setItem('dscplayed','1')}catch(e){}go('menu');playIntro()});
+/* flyer preview then cut */
+let introT=[];
+function playIntro(){const el=$('#intro');const rm=matchMedia('(prefers-reduced-motion: reduce)').matches;if(rm){return}
+ el.className='on';blip(330,.15);
+ introT.push(setTimeout(()=>{el.classList.add('slashing');blip(1200,.05)},2300));
+ introT.push(setTimeout(()=>{el.classList.add('cut');blip(180,.18)},2550));
+ introT.push(setTimeout(endIntro,3350));}
+function endIntro(){introT.forEach(clearTimeout);introT=[];$('#intro').className='';if(cur==='menu')armSaver()}
+$('#skipIntro').onclick=e=>{e.stopPropagation();endIntro()};
+$('#intro').addEventListener('click',()=>{if(!$('#intro').classList.contains('cut')){ $('#intro').classList.add('slashing');setTimeout(()=>$('#intro').classList.add('cut'),200);introT.push(setTimeout(endIntro,1000))}});
+
+
+/* menu selection */
+const items=[...document.querySelectorAll('#menuList li')];let sel=0;
+function setSel(i){sel=(i+items.length)%items.length;items.forEach((li,k)=>li.classList.toggle('sel',k===sel))}setSel(0);
+items.forEach((li,k)=>{li.addEventListener('mouseenter',()=>{if(sel!==k){setSel(k);blip(700,.03)}});li.addEventListener('touchstart',()=>setSel(k),{passive:true})});
+addEventListener('keydown',e=>{if(cur!=='menu')return;if(e.key==='ArrowDown'){setSel(sel+1);blip(700,.03)}if(e.key==='ArrowUp'){setSel(sel-1);blip(700,.03)}if(e.key==='Enter')items[sel].querySelector('button').click()});
+
+/* screensaver */
+let st;const sv=$('#saver'),si=$('#saverImg');let sx=40,sy=80,vx=1.6,vy=1.3,raf;
+function armSaver(){disarmSaver(true);st=setTimeout(()=>{sv.classList.add('on');loop()},20000)}
+function disarmSaver(keep){clearTimeout(st);sv.classList.remove('on');cancelAnimationFrame(raf)}
+function loop(){const w=innerWidth-si.offsetWidth,h=innerHeight-si.offsetHeight;sx+=vx;sy+=vy;if(sx<0||sx>w){vx*=-1;si.style.filter='hue-rotate('+Math.random()*360+'deg)'}if(sy<0||sy>h){vy*=-1;si.style.filter='hue-rotate('+Math.random()*360+'deg)'}si.style.left=sx+'px';si.style.top=sy+'px';raf=requestAnimationFrame(loop)}
+['pointerdown','keydown','touchstart'].forEach(ev=>addEventListener(ev,()=>{if(sv.classList.contains('on')){disarmSaver()} if(cur==='menu')armSaver()},{passive:true}));
+
+/* movie */
+function startMovie(){const m=$('#movie');m.muted=!sound;m.currentTime=0;m.play().catch(()=>{m.muted=true;m.play()});}
+$('#movie').addEventListener('timeupdate',e=>{const t=e.target.currentTime;$('#ctr').textContent='00:00:0'+Math.floor(t)+' SP'});
+$('#movie').addEventListener('ended',()=>{$('#osdL').textContent='■ STOP';setTimeout(()=>go('menu'),900)});
+$('#play').addEventListener('click',()=>go('menu'));
+
+/* scenes */
+$('#sceneGrid').innerHTML=SC.map((s,i)=>`<button class="scene" data-go="viewer" data-arg="${s.k}"><div class="th"><img loading="lazy" src="img/scenes/${s.k}-${f4(FILES[s.k][0])}.jpg" alt=""></div><span class="no">${String(i+1).padStart(2,'0')}</span><div class="nm">${s.n}</div><div class="ct">${s.c} shots</div></button>`).join('');
+let vk='color';
+function openViewer(k){vk=k||vk;const list=FILES[vk];$('#strip').innerHTML=list.map(n=>`<figure><img loading="lazy" src="img/scenes/${vk}-${f4(n)}.jpg" alt=""></figure>`).join('')+`<figure style="flex-direction:column;gap:18px" class="osd"><div style="font-size:34px">END OF SCENE</div><button class="cta" data-go="scenes" style="width:auto;padding:8px 22px">◀ SCENES</button><button class="cta ghost" data-go="shop" style="width:auto;padding:8px 22px">SHOP THE TAPE</button></figure>`;$('#strip').scrollLeft=0;$('#osdR').textContent='CH 02 · '+(SC.find(s=>s.k===vk)||{}).n;count()}
+function count(){const s=$('#strip'),n=FILES[vk].length+1,i=Math.round(s.scrollLeft/s.clientWidth);$('#vCount').textContent=String(Math.min(i+1,n)).padStart(2,'0')+' / '+String(n).padStart(2,'0')}
+$('#strip').addEventListener('scroll',()=>{clearTimeout(window._c);window._c=setTimeout(count,60)});
+$('#vPrev').onclick=()=>{const s=$('#strip');s.scrollBy({left:-s.clientWidth,behavior:'smooth'});blip(600,.03)};
+$('#vNext').onclick=()=>{const s=$('#strip');s.scrollBy({left:s.clientWidth,behavior:'smooth'});blip(600,.03)};
+
+/* shop */
+const CATS=['All','1 of 1','Tees','Pants','Hoodies','Outerwear'];let cat='All';
+function renderChips(){$('#chips').innerHTML=CATS.map(c=>`<button class="chip ${c===cat?'on':''}" data-cat="${c}">${c.toUpperCase()}</button>`).join('')}
+function renderTapes(){const list=P.filter(p=>cat==='All'||(cat==='1 of 1'?p.one:p.c===cat));$('#tapes').innerHTML=list.length?list.map(p=>`<button class="tape" data-go="product" data-arg="${p.h}"><div class="sleeve">${p.one?'<span class="side">1 OF 1</span>':''}<img loading="lazy" src="${img(p)}" alt=""><div class="lbl">${p.t}</div></div><div class="pr"><span>$${p.p}</span><span>${p.c.toUpperCase()}</span></div></button>`).join(''):'<p class="osd" style="font-size:24px;color:#8d8a84">NO TAPES IN THIS SECTION YET</p>'}
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('[data-cat]');if(!b)return;cat=b.dataset.cat;renderChips();renderTapes();blip(640,.03)});
+renderChips();renderTapes();
+
+/* product */
+let pSize='M';
+function openProduct(h){const p=P.find(x=>x.h===h)||P[0];pSize='M';$('#pBody').innerHTML=`<button class="back" data-go="shop">◀ ON THE RACK</button>
+<div class="pgrid"><div class="pimg"><img src="${img(p)}" alt="${p.t}"></div><div>
+<div class="h-ch">${p.one?'DEAD RICH · 1 OF 1':'DEAD RICH'}</div><div class="ptitle">${p.t}</div><div class="pprice">$${p.p}.00</div>
+<div class="sizes">${p.one?'<button class="size on">OS</button>':['S','M','L','XL'].map(s=>`<button class="size ${s==='M'?'on':''}" data-size="${s}">${s}</button>`).join('')}</div>
+<button class="cta" id="addBtn">ADD TO BAG</button><button class="cta ghost" data-go="shop">KEEP BROWSING</button>
+<p class="pnote">${p.one?'One of one. Upcycled by Dead Rich, so when it\'s gone, it\'s gone.':'Dead Rich in-house.'} Fit, fabric and care notes go here.</p>
+<span class="ph">Placeholder product</span></div></div>`;$('#osdR').textContent='CH 03 · '+p.t.toUpperCase();
+$('#pBody').querySelectorAll('[data-size]').forEach(b=>b.onclick=()=>{pSize=b.dataset.size;$('#pBody').querySelectorAll('.size').forEach(x=>x.classList.toggle('on',x===b));blip(640,.03)});
+$('#addBtn').onclick=()=>{cart.push({h:p.h,s:p.one?'OS':pSize});saveCart();toast('ADDED TO BAG · '+p.t.toUpperCase());renderCart()}}
+
+/* cart */
+function renderCart(){$('#cItems').innerHTML=cart.length?cart.map((c,i)=>{const p=P.find(x=>x.h===c.h);return `<div class="citem"><img src="${img(p)}" alt=""><div><div class="n">${p.t}</div><div class="s">SIZE ${c.s} · $${p.p}</div></div><button data-rm="${i}">REMOVE</button></div>`}).join(''):'<p class="osd" style="font-size:24px;color:#8d8a84;margin-top:14px">BAG IS EMPTY</p>';$('#cTotal').textContent='$'+cart.reduce((a,c)=>a+P.find(x=>x.h===c.h).p,0)}
+$('#cItems').addEventListener('click',e=>{const b=e.target.closest('[data-rm]');if(!b)return;cart.splice(+b.dataset.rm,1);saveCart();renderCart();blip(300,.05)});
+$('#cartBtn').onclick=()=>{renderCart();$('#cart').classList.add('on');blip(500,.04)};
+$('#cartClose').onclick=()=>$('#cart').classList.remove('on');
+$('#cart').addEventListener('click',e=>{if(e.target.id==='cart')$('#cart').classList.remove('on')});
+
+/* sound toggle */
+$('#sndBtn').onclick=e=>{sound=!sound;e.target.textContent=sound?'ON':'OFF';e.target.classList.toggle('on',sound)};
+
+/* start */
+saveCart();
+let played=false;try{played=sessionStorage.getItem('dscplayed')==='1'}catch(e){}
+const h=location.hash.slice(1).split('/');
+if(played&&h[0]&&document.getElementById(h[0]))go(h[0],h[1],false);else go(played?'menu':'boot',null,false);
+</script>
+</body>
+</html>
